@@ -1,10 +1,10 @@
-﻿# yolov8-onnx-cpp
+﻿# Helmsman
 
 ## Changelog
 See the changelog [here](CHANGELOG.md)
 
 ## Description
-Hello there! yolov8-onnx-cpp is a C++ demo implementation of the YOLOv8 model using the ONNX library.
+Hello there! Helmsman is a C++ demo implementation of the YOLOv8 model using the ONNX library.
 This project is based on the YOLOv8 model by Ultralytics.
 I aimed to replicate the behavior of the Python version and achieve consistent results across various image sizes.
 
@@ -51,7 +51,7 @@ We can use this parameters at least to define stride, task, names and image size
 
 ## Comparison between Python and C++
 
-I exported `yolov8n.pt`, `yolov8n-seg.pt`, `yolov8n-pose.pt` to ONNX format with an input size of [480, 640] ([height, width]).
+I exported `yolov8n.pt`, `yolov8n-seg.pt`, `yolov8n-pose.pt`, `best.onnx`  to ONNX format with an input size of [480, 640] ([height, width]).
 For the test I used some images from the COCO128 dataset with different image sizes than the specified input. 
 This difference in sizes triggered letterboxing. I maintained consistent parameters, 
 setting `conf=0.3` and `iou=0.5` for all models.
@@ -108,7 +108,7 @@ To get started with yolov8-onnx-cpp, follow these steps:
 
 1. Clone the repository:
     ```shell
-    git clone https://github.com/FourierMourier/yolov8-onnx-cpp.git
+    git clone https://github.com/skytow/Helmsman.git
     ```
 2. Setup additional libraries:
 
