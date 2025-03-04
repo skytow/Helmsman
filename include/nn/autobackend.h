@@ -5,7 +5,7 @@
 #include <opencv2/core/mat.hpp>
 
 #include "onnx_model_base.h"
-#include "constants.h"
+#include "../constants.h"
 
 /**
  * @brief Represents the results of YOLO prediction.

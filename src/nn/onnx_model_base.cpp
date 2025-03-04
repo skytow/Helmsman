@@ -1,8 +1,8 @@
 #include "nn/onnx_model_base.h"
 
 #include <iostream>
-#include <onnxruntime_cxx_api.h>
-#include <onnxruntime_c_api.h>
+#include <onnxruntime/onnxruntime_cxx_api.h>
+#include <onnxruntime/onnxruntime_c_api.h>
 
 #include "constants.h"
 #include "utils/common.h"

@@ -1,5 +1,5 @@
 #pragma once
-#include <onnxruntime_cxx_api.h>
+#include <onnxruntime/onnxruntime_cxx_api.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
