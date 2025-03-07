@@ -7,104 +7,78 @@
 #include "constants.h"
 #include "utils/common.h"
 
-
-/**
- * @brief Base class for any onnx model regarding the target.
- *
- * Wraps OrtApi.
- *
- * The caller provides a model path, logid, and provider.
- *
- * See the output logs for more information on warnings/errors that occur while processing the model.
- *
- * @param[in] modelPath Path to the model file.
- * @param[in] logid Log identifier.
- * @param[in] provider Provider (e.g., "CPU" or "CUDA"). (NOTE: for now only CPU is supported)
- */
-
 OnnxModelBase::OnnxModelBase(const char* modelPath, const char* logid, const char* provider)
-//: modelPath_(modelPath), env(std::move(env)), session(std::move(session))
     : modelPath_(modelPath)
 {
-
-    // TODO: too bad passing `ORT_LOGGING_LEVEL_WARNING` by default - for some cases
-    //       info level would make sense too
+    // Initialize the ONNX Runtime environment
     env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, logid);
     Ort::SessionOptions sessionOptions = Ort::SessionOptions();
 
+    // Get list of available providers from the runtime
     std::vector<std::string> availableProviders = Ort::GetAvailableProviders();
-    auto cudaAvailable = std::find(availableProviders.begin(), availableProviders.end(), "CUDAExecutionProvider");
+    auto cudaAvailable = std::find(availableProviders.begin(), availableProviders.end(), OnnxProviders::CUDA);
     OrtCUDAProviderOptions cudaOption;
 
-    if (provider == OnnxProviders::CUDA.c_str()) {  // strcmp(provider, OnnxProviders::CUDA.c_str()) == true strcmp(provider, "cuda") // (providerStr == "cuda")
+    std::string providerStr(provider);
+    if (providerStr == OnnxProviders::CUDA) {
         if (cudaAvailable == availableProviders.end()) {
-            std::cout << "CUDA is not supported by your ONNXRuntime build. Fallback to CPU." << std::endl;
-            //std::cout << "Inference device: CPU" << std::endl;
-        }
-        else {
-            //std::cout << "Inference device: GPU" << std::endl;
+            std::cout << "CUDA is not supported by your ONNXRuntime build. Falling back to CPU." << std::endl;
+            // CPU is default so we do nothing
+        } else {
             sessionOptions.AppendExecutionProvider_CUDA(cudaOption);
         }
     }
-
-    else if (provider == OnnxProviders::CPU.c_str()) {  // strcmp(provider, OnnxProviders::CPU.c_str()) == true) (providerStr == "cpu") {
-        // "cpu" by default
+    else if (providerStr == OnnxProviders::CPU || providerStr == OnnxProviders::CPUExecutionProvider) {
+        // CPU is the default provider in ONNX Runtime, so no need to append an execution provider.
+        // Do nothing.
     }
-    else
-    {
-        throw std::runtime_error("NotImplemented provider=" + std::string(provider));
+    else {
+        throw std::runtime_error("NotImplemented provider=" + providerStr);
     }
 
-    std::cout << "Inference device: " << std::string(provider) << std::endl;
+    std::cout << "Inference device: " << providerStr << std::endl;
+
     #ifdef _WIN32
-        auto modelPathW = get_win_path(modelPath);  // For Windows (wstring)
+        auto modelPathW = get_win_path(modelPath);  // For Windows: convert to wstring
         session = Ort::Session(env, modelPathW.c_str(), sessionOptions);
     #else
-        session = Ort::Session(env, modelPath, sessionOptions);  // For Linux (string)
+        session = Ort::Session(env, modelPath, sessionOptions);  // For Linux (and macOS)
     #endif
-    //session = Ort::Session(env)
-    // https://github.com/microsoft/onnxruntime/issues/14157
-    //std::vector<const char*> inputNodeNames; //
+
     // ----------------
-    // init input names
-    inputNodeNames;
-    std::vector<Ort::AllocatedStringPtr> inputNodeNameAllocatedStrings; // <-- newly added
+    // Initialize input names and copy them to member storage to extend lifetime
     Ort::AllocatorWithDefaultOptions allocator;
-    auto inputNodesNum = session.GetInputCount();
-    for (int i = 0; i < inputNodesNum; i++) {
+    size_t inputNodesNum = session.GetInputCount();
+    for (size_t i = 0; i < inputNodesNum; i++) {
         auto input_name = session.GetInputNameAllocated(i, allocator);
-        inputNodeNameAllocatedStrings.push_back(std::move(input_name));
-        inputNodeNames.push_back(inputNodeNameAllocatedStrings.back().get());
+        inputNodeNames.push_back(std::string(input_name.get()));
     }
+    for (const auto& name : inputNodeNames) {
+        inputNamesCStr.push_back(name.c_str());
+    }
+
     // -----------------
-    // init output names
-    outputNodeNames;
-    auto outputNodesNum = session.GetOutputCount();
-    std::vector<Ort::AllocatedStringPtr> outputNodeNameAllocatedStrings; // <-- newly added
+    // Initialize output names and copy them to member storage
     Ort::AllocatorWithDefaultOptions output_names_allocator;
-    for (int i = 0; i < outputNodesNum; i++)
-    {
+    size_t outputNodesNum = session.GetOutputCount();
+    for (size_t i = 0; i < outputNodesNum; i++) {
         auto output_name = session.GetOutputNameAllocated(i, output_names_allocator);
-        outputNodeNameAllocatedStrings.push_back(std::move(output_name));
-        outputNodeNames.push_back(outputNodeNameAllocatedStrings.back().get());
+        outputNodeNames.push_back(std::string(output_name.get()));
     }
+    for (const auto& name : outputNodeNames) {
+        outputNamesCStr.push_back(name.c_str());
+    }
+
     // -------------------------
-    // initialize model metadata
+    // Initialize model metadata
     model_metadata = session.GetModelMetadata();
     Ort::AllocatorWithDefaultOptions metadata_allocator;
-
     std::vector<Ort::AllocatedStringPtr> metadataAllocatedKeys = model_metadata.GetCustomMetadataMapKeysAllocated(metadata_allocator);
     std::vector<std::string> metadata_keys;
     metadata_keys.reserve(metadataAllocatedKeys.size());
-
     for (const Ort::AllocatedStringPtr& allocatedString : metadataAllocatedKeys) {
         metadata_keys.emplace_back(allocatedString.get());
     }
-
-    // -------------------------
-    // initialize metadata as the dict
-    // even though we know exactly what metadata we intend to use
-    // base onnx class should not have any ultralytics yolo-specific attributes like stride, task etc, so keep it clean as much as possible
     for (const std::string& key : metadata_keys) {
         Ort::AllocatedStringPtr metadata_value = model_metadata.LookupCustomMetadataMapAllocated(key.c_str(), metadata_allocator);
         if (metadata_value != nullptr) {
@@ -112,17 +86,6 @@ OnnxModelBase::OnnxModelBase(const char* modelPath, const char* logid, const cha
             metadata[key] = std::string(raw_metadata_value);
         }
     }
-
-    // initialize cstr
-    for (const std::string& name : outputNodeNames) {
-        outputNamesCStr.push_back(name.c_str());
-    }
-
-    for (const std::string& name : inputNodeNames)
-    {
-        inputNamesCStr.push_back(name.c_str());
-    }
-
 }
 
 const std::vector<std::string>& OnnxModelBase::getInputNames() {
@@ -142,7 +105,6 @@ const std::unordered_map<std::string, std::string>& OnnxModelBase::getMetadata()
 {
     return metadata;
 }
-
 
 const Ort::Session& OnnxModelBase::getSession()
 {
@@ -166,8 +128,6 @@ const std::vector<const char*> OnnxModelBase::getInputNamesCStr()
 
 std::vector<Ort::Value> OnnxModelBase::forward(std::vector<Ort::Value>& inputTensors)
 {
-    // todo: make runOptions parameter here
-
     return session.Run(Ort::RunOptions{ nullptr },
         inputNamesCStr.data(),
         inputTensors.data(),
@@ -175,7 +135,3 @@ std::vector<Ort::Value> OnnxModelBase::forward(std::vector<Ort::Value>& inputTen
         outputNamesCStr.data(),
         outputNamesCStr.size());
 }
-
-//OnnxModelBase::~OnnxModelBase() {
-//    // empty body
-//}

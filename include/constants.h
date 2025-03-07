@@ -16,6 +16,7 @@ namespace MetadataConstants {
 namespace OnnxProviders {
     inline const std::string CPU = "cpu";
     inline const std::string CUDA = "cuda";
+    inline const std::string CPUExecutionProvider = "CPUExecutionProvider";
 }
 
 namespace OnnxInitializers
