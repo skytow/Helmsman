@@ -1,14 +1,14 @@
 #include <random>
 
 #include <filesystem>
-#include "nn/onnx_model_base.h"
-#include "nn/autobackend.h"
+#include "../include/nn/onnx_model_base.h"
+#include "../include/nn/autobackend.h"
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-#include "utils/augment.h"
+#include "../include/utils/augment.h"
 #include "constants.h"
-#include "utils/common.h"
+#include "../include/utils/common.h"
 
 
 namespace fs = std::filesystem;
@@ -316,13 +316,13 @@ void plot_results(cv::Mat img, std::vector<YoloResults>& results,
 
 int main()
 {
-    std::string img_path = "../assets/sails_13.jpg";
+    std::string img_path = "../images/sails_13.jpg";
     //const std::img_path& modelPath = "./checkpoints/yolov8n.onnx"; // detection
     // vs:
     //    const std::string& modelPath = "./checkpoints/yolov8n-seg.onnx"; // instance segmentation
     // clion:
- //   const std::string& modelPath = "../../checkpoints/yolov8n-pose.onnx"; // pose
-    const std::string& modelPath = "../checkpoints/best.onnx"; // pose
+  //  const std::string& modelPath = "../../checkpoints/yolov8n-pose.onnx"; // pose
+    const std::string& modelPath = "../checkpoints/best.onnx"; // maritime detector
 
     fs::path imageFilePath(img_path);
     fs::path newFilePath = imageFilePath.stem();
